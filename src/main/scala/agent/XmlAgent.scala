@@ -249,7 +249,8 @@ class XmlAgent extends Actor with LazyLogging {
           val localPath = Paths.get(f.getAbsolutePath)
           import org.apache.commons.io._
           FileUtils.copyFileToDirectory(f, xmlOutDir, true)
-          appendToIndex(f.getAbsolutePath)
+          if(!alreadyInIndex.contains(f.getName))
+            appendToIndex(f.getName)
           f.delete()
       }
       true
