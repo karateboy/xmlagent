@@ -21,8 +21,7 @@ object XmlAgent extends LazyLogging {
   val xmlOutputPathStr = config.getString("xmlOutputPath")
   logger.info(s"xmlOutputPathStr =$xmlOutputPathStr")
 
-  val ic01_props = config.getObject("ic01_prop")
-  val ts01_props = config.getObject("ts01_prop")
+  def configType = List("ic01", "ts01", "voc01")
 
   def getChannelMap(name: String) = {
     val channels = config.getObject(name).entrySet()
@@ -33,9 +32,6 @@ object XmlAgent extends LazyLogging {
     channelKV.toMap
   }
 
-  val ic01_channelMap = getChannelMap("ic01_channel")
-  val ts01_channelMap = getChannelMap("ts01_channel")
-
   def getAnMap(name: String) = {
     val ans = config.getObject(name).entrySet()
     val anKV = ans.asScala map { an =>
@@ -45,8 +41,13 @@ object XmlAgent extends LazyLogging {
     anKV.toMap
   }
 
-  val ic01_anMap = getAnMap("ic01_an")
-  val ts01_anMap = getAnMap("ts01_an")
+  val configTypeMap = configType.map {
+    name =>
+      name -> (
+        config.getObject(s"${name}_prop"),
+        getChannelMap(s"${name}_channel"),
+        getAnMap(s"${name}_an"))
+  }.toMap
 
   var receiver: ActorRef = _
   def startup(system: ActorSystem) = {
@@ -77,21 +78,13 @@ class XmlAgent extends Actor with LazyLogging {
     val xmlOutPath = Paths.get(xmlOutDir.getAbsolutePath)
     Files.createDirectories(xmlOutPath)
   }
-  
+
   logger.info(s"xmlOutPath=${xmlOutDir.getAbsolutePath}")
 
   def writeXml(dt: DateTime, computer: String, channel: String, mtDataList: List[(String, String)]) = {
     try {
 
-      def choose[T](v1: T, v2: T) =
-        if (computer == "IC01")
-          v1
-        else
-          v2
-
-      val channelMap = choose(ic01_channelMap, ts01_channelMap)
-      val props = choose(ic01_props, ts01_props)
-      val anMap = choose(ic01_anMap, ts01_anMap)
+      val (props, channelMap, anMap) = configTypeMap(computer.toLowerCase())
 
       val dtStr = dt.toString("YYYYMMddHHmmss")
       val eqid = props.toConfig().getString("glass_id")
@@ -104,12 +97,12 @@ class XmlAgent extends Actor with LazyLogging {
         nodeBuffer += xml.Elem(null, p.getKey, xml.Null, xml.TopScope, false, new xml.Text(v.substring(1, v.length() - 1)))
       }
       nodeBuffer += <cldate>{ dt.toString("YYYY-MM-dd") }</cldate>
-      nodeBuffer += <cltime>{ dt.toString("hh-mm-ss") }</cltime>
+      nodeBuffer += <cltime>{ dt.toString("HH-mm-ss") }</cltime>
       val iaryBuffer = new xml.NodeBuffer()
       for (mtData <- mtDataList) {
         val iary = <iary>
-                     <item_name>{ anMap(mtData._1) }</item_name>
-                     <item_type>AVG</item_type>
+                     <item_name>{s"${channelMap(channel)} ${anMap(mtData._1)}"  }</item_name>
+                     <item_type>X</item_type>
                      <item_value>{ mtData._2 }</item_value>
                    </iary>
         iaryBuffer += iary
@@ -249,7 +242,7 @@ class XmlAgent extends Actor with LazyLogging {
           val localPath = Paths.get(f.getAbsolutePath)
           import org.apache.commons.io._
           FileUtils.copyFileToDirectory(f, xmlOutDir, true)
-          if(!alreadyInIndex.contains(f.getName))
+          if (!alreadyInIndex.contains(f.getName))
             appendToIndex(f.getName)
           f.delete()
       }
