@@ -21,6 +21,12 @@ object XmlAgent extends LazyLogging {
   val xmlOutputPathStr = config.getString("xmlOutputPath")
   logger.info(s"xmlOutputPathStr =$xmlOutputPathStr")
 
+  val itemType = config.getString("itemType")
+  logger.info(s"itemType =$itemType")
+
+  val fileNameConfig = config.getInt("fileNameConfig")
+  logger.info(s"fileNameConfig =$fileNameConfig")
+
   def configType = List("ic01", "ts01", "voc01")
 
   def getChannelMap(name: String) = {
@@ -89,7 +95,11 @@ class XmlAgent extends Actor with LazyLogging {
       val dtStr = dt.toString("YYYYMMddHHmmss")
       val eqid = props.toConfig().getString("glass_id")
       val glass_id = props.toConfig().getString("eqp_id")
-      val xmlFile = new File(s"${localDir.getAbsolutePath}${File.separator}${dtStr}_${eqid}_${glass_id}.xml")
+      val xmlFile =
+        if (fileNameConfig == 0)
+          new File(s"${localDir.getAbsolutePath}${File.separator}${dtStr}_${glass_id}_${eqid}.xml")
+        else
+          new File(s"${localDir.getAbsolutePath}${File.separator}${dtStr}_${channel}_${glass_id}_${eqid}.xml")
 
       val nodeBuffer = new xml.NodeBuffer
       for (p <- props.entrySet().asScala) {
@@ -97,12 +107,12 @@ class XmlAgent extends Actor with LazyLogging {
         nodeBuffer += xml.Elem(null, p.getKey, xml.Null, xml.TopScope, false, new xml.Text(v.substring(1, v.length() - 1)))
       }
       nodeBuffer += <cldate>{ dt.toString("YYYY-MM-dd") }</cldate>
-      nodeBuffer += <cltime>{ dt.toString("HH-mm-ss") }</cltime>
+      nodeBuffer += <cltime>{ dt.toString("HH:mm:ss") }</cltime>
       val iaryBuffer = new xml.NodeBuffer()
       for (mtData <- mtDataList) {
         val iary = <iary>
-                     <item_name>{s"${channelMap(channel)} ${anMap(mtData._1)}"  }</item_name>
-                     <item_type>X</item_type>
+                     <item_name>{ s"${channelMap(channel)} ${anMap(mtData._1)}" }</item_name>
+                     <item_type>{ s"$itemType" }</item_type>
                      <item_value>{ mtData._2 }</item_value>
                    </iary>
         iaryBuffer += iary
