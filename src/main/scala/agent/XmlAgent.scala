@@ -102,16 +102,24 @@ class XmlAgent extends Actor with LazyLogging {
           new File(s"${localDir.getAbsolutePath}${File.separator}${dtStr}_${channel}_${glass_id}_${eqid}.xml")
 
       val nodeBuffer = new xml.NodeBuffer
-      for (p <- props.entrySet().asScala) {
-        val v = p.getValue.render()
-        nodeBuffer += xml.Elem(null, p.getKey, xml.Null, xml.TopScope, false, new xml.Text(v.substring(1, v.length() - 1)))
+      val keyConfigList = props.asScala.toList
+
+      for {
+        (key, v) <- keyConfigList.sortWith((cv1, cv2) => cv1._2.origin().lineNumber() < cv2._2.origin().lineNumber())
+      } {
+        key match {
+          case "cldate" => nodeBuffer += <cldate>{ dt.toString("YYYY-MM-dd") }</cldate>
+          case "cltime" => nodeBuffer += <cltime>{ dt.toString("HH:mm:ss") }</cltime>
+          case _ =>
+            val str = v.unwrapped().asInstanceOf[String]
+            nodeBuffer += xml.Elem(null, key, xml.Null, xml.TopScope, false, new xml.Text(str))
+        }
       }
-      nodeBuffer += <cldate>{ dt.toString("YYYY-MM-dd") }</cldate>
-      nodeBuffer += <cltime>{ dt.toString("HH:mm:ss") }</cltime>
+      
       val iaryBuffer = new xml.NodeBuffer()
       for (mtData <- mtDataList) {
         val iary = <iary>
-                     <item_name>{ s"${channelMap(channel)} ${anMap(mtData._1)}" }</item_name>
+                     <item_name>{ s"${channelMap(channel)}${anMap(mtData._1)}" }</item_name>
                      <item_type>{ s"$itemType" }</item_type>
                      <item_value>{ mtData._2 }</item_value>
                    </iary>
@@ -124,6 +132,7 @@ class XmlAgent extends Actor with LazyLogging {
 
       xml.XML.save(
         filename = outputFilename,
+        enc = "Big5",
         node = outputXml,
         xmlDecl = true)
       logger.info(s"write $outputFilename done")
@@ -233,18 +242,6 @@ class XmlAgent extends Actor with LazyLogging {
 
     val xmlPath = Paths.get(xmlOutDir.getAbsolutePath)
     val xmlFiles = files.filter(_.getName.endsWith("xml"))
-    val indexFile = new File(xmlOutDir.getAbsolutePath + File.separatorChar +
-      s"${DateTime.now().toString("YYYYMMdd")}_${eqid}_${glass_id}.txt")
-
-    val alreadyInIndex =
-      try {
-        Files.readAllLines(Paths.get(indexFile.getAbsolutePath)).asScala.toSeq
-      } catch {
-        case ex: Throwable =>
-          Seq.empty[String]
-      }
-    def appendToIndex(filePath: String) =
-      Files.write(Paths.get(indexFile.getAbsolutePath), (filePath + "\r\n").getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.APPEND)
 
     try {
       xmlFiles.map {
@@ -252,8 +249,6 @@ class XmlAgent extends Actor with LazyLogging {
           val localPath = Paths.get(f.getAbsolutePath)
           import org.apache.commons.io._
           FileUtils.copyFileToDirectory(f, xmlOutDir, true)
-          if (!alreadyInIndex.contains(f.getName))
-            appendToIndex(f.getName)
           f.delete()
       }
       true
