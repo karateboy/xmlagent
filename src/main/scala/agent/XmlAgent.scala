@@ -101,9 +101,9 @@ class XmlAgent extends Actor with LazyLogging {
       val eqid = props.toConfig().getString("eqp_id")
       val xmlFile =
         if (fileNameConfig == 0)
-          new File(s"${localDir.getAbsolutePath}${File.separator}${dtStr}_${glass_id}_${eqid}.xml")
+          new File(s"${xmlOutputPathStr}${File.separator}${dtStr}_${glass_id}_${eqid}.xml")
         else {
-          val outpathStr = s"${localDir.getAbsolutePath}${File.separator}${eqid}${File.separator}${channelMap(channel)}${File.separator}"
+          val outpathStr = s"${xmlOutputPathStr}${File.separator}${eqid}${File.separator}${channelMap(channel)}${File.separator}"
           val outpath = new File(outpathStr)
           if (!outpath.exists())
             outpath.mkdirs()
@@ -148,7 +148,9 @@ class XmlAgent extends Actor with LazyLogging {
         node = outputXml,
         xmlDecl = true)
       logger.info(s"write $outputFilename done")
-      copyXml(eqid, glass_id)
+      
+      //copyXml(eqid, glass_id)
+      true
     } catch {
       case ex: Exception =>
         logger.error("failed to output", ex)
@@ -257,9 +259,14 @@ class XmlAgent extends Actor with LazyLogging {
 
     try {
       import org.apache.commons.io.filefilter.TrueFileFilter
-      val targets = FileUtils.listFilesAndDirs(localDir, TrueFileFilter.INSTANCE, null)
-      targets.forEach {
-        f => FileUtils.copyDirectoryToDirectory(f, xmlOutDir)
+      val targets = FileUtils.listFilesAndDirs(localDir, TrueFileFilter.TRUE, null).asScala
+      targets.foreach {
+        f =>
+          logger.info(s"list => ${f.getAbsolutePath}")
+          if (f.isDirectory())
+            FileUtils.copyDirectoryToDirectory(f, xmlOutDir)
+          else
+            FileUtils.copyFileToDirectory(f, xmlOutDir)
       }
 
       FileUtils.cleanDirectory(localDir)
