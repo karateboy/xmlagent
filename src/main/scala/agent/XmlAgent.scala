@@ -131,7 +131,8 @@ class XmlAgent extends Actor with LazyLogging {
           case "cltime" => nodeBuffer += <cltime>{ dt.toString("HH:mm:ss") }</cltime>
           case "sub_eqp_id" if fileNameConfig == 1 =>
             nodeBuffer += xml.Elem(null, key, xml.Null, xml.TopScope, false, new xml.Text(channelMap(channel)))
-
+          case "eqp_id" if fileNameConfig == 1 =>
+            nodeBuffer += xml.Elem(null, key, xml.Null, xml.TopScope, false, new xml.Text(channelMap(channel)))
           case _ =>
             val str = v.unwrapped().asInstanceOf[String]
             nodeBuffer += xml.Elem(null, key, xml.Null, xml.TopScope, false, new xml.Text(str))
@@ -158,7 +159,7 @@ class XmlAgent extends Actor with LazyLogging {
         node = outputXml,
         xmlDecl = true)
       logger.info(s"write $outputFilename done")
-      
+
       //copyXml(eqid, glass_id)
       true
     } catch {
