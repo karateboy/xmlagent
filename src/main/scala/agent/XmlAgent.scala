@@ -102,14 +102,24 @@ class XmlAgent extends Actor with LazyLogging {
       val xmlFile =
         if (fileNameConfig == 0)
           new File(s"${xmlOutputPathStr}${File.separator}${dtStr}_${glass_id}_${eqid}.xml")
-        else {
+        else if(fileNameConfig == 1) {
           val outpathStr = s"${xmlOutputPathStr}${File.separator}${eqid}${File.separator}${channelMap(channel)}${File.separator}"
           val outpath = new File(outpathStr)
           if (!outpath.exists())
             outpath.mkdirs()
 
           new File(s"${outpathStr}${dtStr}_${channelMap(channel)}_${glass_id}.xml")
+        }else if(fileNameConfig == 2){
+          val outpathStr = s"${xmlOutputPathStr}${File.separator}${eqid}${File.separator}"
+          val outpath = new File(outpathStr)
+          if (!outpath.exists())
+            outpath.mkdirs()
+
+          new File(s"${outpathStr}${dtStr}_${channelMap(channel)}_${glass_id}.xml")
+        }else{
+          throw new Exception(s"Unknwon fileNameConfig ${fileNameConfig}")
         }
+      
       val nodeBuffer = new xml.NodeBuffer
       val keyConfigList = props.asScala.toList
 
