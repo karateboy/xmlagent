@@ -11,6 +11,6 @@ object AppMain extends App {
   import scala.concurrent.Await
   import scala.concurrent.duration._
   XmlAgent.startup(system)
-  XmlAgent.parseOutput
+  XmlAgent.parseOutput()
   Await.result(system.whenTerminated, Duration.Inf)
 }

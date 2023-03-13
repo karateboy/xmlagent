@@ -1,35 +1,34 @@
 package agent
 
-import akka.actor.{ Actor, ActorLogging, Props, ActorRef }
-import akka.actor.ActorSystem
-import scala.concurrent.ExecutionContext.Implicits.global
+import akka.actor.{Actor, ActorRef, ActorSystem, Props}
 import com.typesafe.scalalogging._
+
 import scala.collection.JavaConverters._
+import scala.concurrent.ExecutionContext.Implicits.global
 
 object XmlAgent extends LazyLogging {
+
   import com.typesafe.config.ConfigFactory
-  import com.github.nscala_time.time.Imports._
-  import java.nio.file._
 
   case object ParseOutput
 
-  val config = ConfigFactory.load()
+  private val config = ConfigFactory.load()
 
-  val inputPath = config.getString("inputPath")
+  private val inputPath = config.getString("inputPath")
   logger.info(s"inputPath =$inputPath")
 
-  val xmlOutputPathStr = config.getString("xmlOutputPath")
+  private val xmlOutputPathStr = config.getString("xmlOutputPath")
   logger.info(s"xmlOutputPathStr =$xmlOutputPathStr")
 
-  val itemType = config.getString("itemType")
+  private val itemType = config.getString("itemType")
   logger.info(s"itemType =$itemType")
 
-  val fileNameConfig = config.getInt("fileNameConfig")
+  private val fileNameConfig = config.getInt("fileNameConfig")
   logger.info(s"fileNameConfig =$fileNameConfig")
 
-  def configType = List("ic01", "ts01", "voc01")
+  private def configType = List("ic01", "ts01", "voc01")
 
-  def getChannelMap(name: String) = {
+  private def getChannelMap(name: String) = {
     val channels = config.getObject(name).entrySet()
     val channelKV = channels.asScala map { ch =>
       val v = ch.getValue.render()
@@ -38,7 +37,7 @@ object XmlAgent extends LazyLogging {
     channelKV.toMap
   }
 
-  def getAnMap(name: String) = {
+  private def getAnMap(name: String) = {
     val ans = config.getObject(name).entrySet()
     val anKV = ans.asScala map { an =>
       val v = an.getValue.render()
@@ -47,7 +46,7 @@ object XmlAgent extends LazyLogging {
     anKV.toMap
   }
 
-  val configTypeMap = configType.map {
+  private val configTypeMap = configType.map {
     name =>
       name -> (
         config.getObject(s"${name}_prop"),
@@ -56,24 +55,24 @@ object XmlAgent extends LazyLogging {
   }.toMap
 
   var receiver: ActorRef = _
-  def startup(system: ActorSystem) = {
+
+  def startup(system: ActorSystem): Unit = {
     receiver = system.actorOf(Props(classOf[XmlAgent]), name = "xmlAgent")
   }
 
-  def parseOutput = {
+  def parseOutput(): Unit = {
     receiver ! ParseOutput
   }
 }
 
-import scala.concurrent.{ Future, Promise }
-
 class XmlAgent extends Actor with LazyLogging {
+
   import XmlAgent._
-  import com.typesafe.config.ConfigFactory
   import com.github.nscala_time.time.Imports._
+  import org.apache.commons.io._
+
   import java.io.File
   import java.nio.file._
-  import org.apache.commons.io._
 
   val localDir = new File("local" + File.separator)
   if (!localDir.exists())
@@ -91,35 +90,35 @@ class XmlAgent extends Actor with LazyLogging {
 
   logger.info(s"xmlOutPath=${xmlOutDir.getAbsolutePath}")
 
-  def writeXml(dt: DateTime, computer: String, channel: String, mtDataList: List[(String, String)]) = {
+  private def writeXml(dt: DateTime, computer: String, channel: String, mtDataList: List[(String, String)]) = {
     try {
 
       val (props, channelMap, anMap) = configTypeMap(computer.toLowerCase())
 
       val dtStr = dt.toString("YYYYMMddHHmmss")
-      val glass_id = props.toConfig().getString("glass_id")
-      val eqid = props.toConfig().getString("eqp_id")
+      val glass_id = props.toConfig.getString("glass_id")
+      val eqid = props.toConfig.getString("eqp_id")
       val xmlFile =
         if (fileNameConfig == 0)
-          new File(s"${xmlOutputPathStr}${File.separator}${dtStr}_${glass_id}_${eqid}.xml")
-        else if(fileNameConfig == 1) {
-          val outpathStr = s"${xmlOutputPathStr}${File.separator}${eqid}${File.separator}${channelMap(channel)}${File.separator}"
+          new File(s"$xmlOutputPathStr${File.separator}${dtStr}_${glass_id}_$eqid.xml")
+        else if (fileNameConfig == 1) {
+          val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}${channelMap(channel)}${File.separator}"
           val outpath = new File(outpathStr)
           if (!outpath.exists())
             outpath.mkdirs()
 
-          new File(s"${outpathStr}${dtStr}_${channelMap(channel)}_${glass_id}.xml")
-        }else if(fileNameConfig == 2){
-          val outpathStr = s"${xmlOutputPathStr}${File.separator}${eqid}${File.separator}"
+          new File(s"$outpathStr${dtStr}_${channelMap(channel)}_${glass_id}.xml")
+        } else if (fileNameConfig == 2) {
+          val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}"
           val outpath = new File(outpathStr)
           if (!outpath.exists())
             outpath.mkdirs()
 
-          new File(s"${outpathStr}${dtStr}_${channelMap(channel)}_${glass_id}.xml")
-        }else{
+          new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
+        } else {
           throw new Exception(s"Unknwon fileNameConfig ${fileNameConfig}")
         }
-      
+
       val nodeBuffer = new xml.NodeBuffer
       val keyConfigList = props.asScala.toList
 
@@ -127,8 +126,12 @@ class XmlAgent extends Actor with LazyLogging {
         (key, v) <- keyConfigList.sortWith((cv1, cv2) => cv1._2.origin().lineNumber() < cv2._2.origin().lineNumber())
       } {
         key match {
-          case "cldate" => nodeBuffer += <cldate>{ dt.toString("YYYY-MM-dd") }</cldate>
-          case "cltime" => nodeBuffer += <cltime>{ dt.toString("HH:mm:ss") }</cltime>
+          case "cldate" => nodeBuffer += <cldate>
+            {dt.toString("YYYY-MM-dd")}
+          </cldate>
+          case "cltime" => nodeBuffer += <cltime>
+            {dt.toString("HH:mm:ss")}
+          </cltime>
           case "sub_eqp_id" if fileNameConfig == 1 =>
             nodeBuffer += xml.Elem(null, key, xml.Null, xml.TopScope, false, new xml.Text(channelMap(channel)))
           case "eqp_id" if fileNameConfig == 1 =>
@@ -142,15 +145,25 @@ class XmlAgent extends Actor with LazyLogging {
       val iaryBuffer = new xml.NodeBuffer()
       for (mtData <- mtDataList) {
         val iary = <iary>
-                     <item_name>{ s"${channelMap(channel)}${anMap(mtData._1)}" }</item_name>
-                     <item_type>{ s"$itemType" }</item_type>
-                     <item_value>{ mtData._2 }</item_value>
-                   </iary>
+          <item_name>
+            {s"${channelMap(channel)}${anMap(mtData._1)}"}
+          </item_name>
+          <item_type>
+            {s"$itemType"}
+          </item_type>
+          <item_value>
+            {mtData._2}
+          </item_value>
+        </iary>
         iaryBuffer += iary
       }
-      val dataElem = <datas>{ iaryBuffer }</datas>
+      val dataElem = <datas>
+        {iaryBuffer}
+      </datas>
       nodeBuffer += dataElem
-      val outputXml = <EDC>{ nodeBuffer }</EDC>
+      val outputXml = <EDC>
+        {nodeBuffer}
+      </EDC>
       val outputFilename = xmlFile.getAbsolutePath
 
       xml.XML.save(
@@ -169,7 +182,7 @@ class XmlAgent extends Actor with LazyLogging {
     }
   }
 
-  def receive = {
+  def receive: Receive = {
     case ParseOutput =>
       try {
         processInputPath(parser)
@@ -177,14 +190,12 @@ class XmlAgent extends Actor with LazyLogging {
         case ex: Throwable =>
           logger.error("processInputPath failed", ex)
       }
-      import scala.concurrent.duration._
       context.system.scheduler.scheduleOnce(scala.concurrent.duration.Duration(1, scala.concurrent.duration.MINUTES), self, ParseOutput)
   }
 
-  import java.io.File
-  def parser(f: File): Boolean = {
-    import java.nio.file.{ Paths, Files, StandardOpenOption }
-    import java.nio.charset.{ StandardCharsets }
+  private def parser(f: File): Boolean = {
+    import java.nio.charset.StandardCharsets
+    import java.nio.file.{Files, Paths}
     import scala.collection.JavaConverters._
 
     val lines =
@@ -244,14 +255,14 @@ class XmlAgent extends Actor with LazyLogging {
           writeXml(rec._1, rec._2, rec._3, rec._4)
         }
 
-      ret.foldLeft(true)((x, y) => x && y)
+      ret.forall(y => y)
     }
   }
 
-  def listAllFiles(files_path: String) = {
+  private def listAllFiles(files_path: String) = {
     //import java.io.FileFilter
     val path = new java.io.File(files_path)
-    if (path.exists() && path.isDirectory()) {
+    if (path.exists() && path.isDirectory) {
       val allFiles = new java.io.File(files_path).listFiles().toList
       allFiles.filter(p => p != null)
     } else {
@@ -263,7 +274,6 @@ class XmlAgent extends Actor with LazyLogging {
   def copyXml(eqid: String, glass_id: String) = {
     val files = listAllFiles(localDir.getAbsolutePath)
     import java.nio.file._
-    import java.nio.charset.{ StandardCharsets }
 
     val xmlPath = Paths.get(xmlOutDir.getAbsolutePath)
     val xmlFiles = files.filter(_.getName.endsWith("xml"))
@@ -274,7 +284,7 @@ class XmlAgent extends Actor with LazyLogging {
       targets.foreach {
         f =>
           logger.info(s"list => ${f.getAbsolutePath}")
-          if (f.isDirectory())
+          if (f.isDirectory)
             FileUtils.copyDirectoryToDirectory(f, xmlOutDir)
           else
             FileUtils.copyFileToDirectory(f, xmlOutDir)
@@ -293,39 +303,35 @@ class XmlAgent extends Actor with LazyLogging {
       true
     } catch {
       case ex: Throwable =>
-        logger.error(ex.toString())
+        logger.error(ex.toString)
         false
     }
   }
 
-  def processInputPath(parser: (File) => Boolean) = {
+  private def processInputPath(parser: File => Boolean): Unit = {
     val files = listAllFiles(XmlAgent.inputPath)
-    val output =
-      for (f <- files) yield {
-        if (f.getName.endsWith("txt")) {
-          logger.info(s"parse ${f.getName}")
-          try {
-            val result = parser(f)
 
-            if (result) {
-              logger.info(s"${f.getAbsolutePath} success.")
-              f.delete()
-              1
-            } else
-              0
-          } catch {
-            case ex: Throwable =>
-              logger.error("skip buggy file", ex)
-              0
+    for (f <- files) {
+      if (f.getName.endsWith("txt")) {
+        logger.info(s"parse ${f.getName}")
+        try {
+          val result = parser(f)
+
+          if (result) {
+            logger.info(s"${f.getAbsolutePath} success.")
+            f.delete()
           }
-        } else {
-          f.delete()
-          0
+        } catch {
+          case ex: Throwable =>
+            logger.error("skip buggy file", ex)
         }
+      } else {
+        f.delete()
       }
+    }
   }
 
-  override def postStop = {
+  override def postStop: Unit = {
 
   }
 }
