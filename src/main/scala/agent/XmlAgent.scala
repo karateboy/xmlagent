@@ -54,6 +54,11 @@ object XmlAgent extends LazyLogging {
         getAnMap(s"${name}_an"))
   }.toMap
 
+  private def getChannelFolderMap: Map[String, Map[String, String]] = configType.map {
+    name =>
+      name->getAnMap(s"${name}_folder")
+  }.toMap
+
   var receiver: ActorRef = _
 
   def startup(system: ActorSystem): Unit = {
@@ -115,7 +120,15 @@ class XmlAgent extends Actor with LazyLogging {
             outpath.mkdirs()
 
           new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
-        } else {
+        } else if(fileNameConfig == 3){
+          val channelFolderMap = getChannelFolderMap
+          val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}${channelFolderMap(computer.toLowerCase())(channel)}${File.separator}"
+          val outpath = new File(outpathStr)
+          if (!outpath.exists())
+            outpath.mkdirs()
+
+          new File(s"$outpathStr${dtStr}_${channelMap(channel)}_${glass_id}.xml")
+        }else{
           throw new Exception(s"Unknwon fileNameConfig ${fileNameConfig}")
         }
 
@@ -236,7 +249,7 @@ class XmlAgent extends Actor with LazyLogging {
             (dt.get, computer, channel, data) :: Nil
           } catch {
             case ex: java.lang.IndexOutOfBoundsException =>
-              if (dt.isDefined && !data.isEmpty)
+              if (dt.isDefined && data.nonEmpty)
                 (dt.get, computer, channel, data) :: recordParser(unparsed.drop(lineNo))
               else
                 recordParser(unparsed.drop(lineNo))
