@@ -28,7 +28,7 @@ object XmlAgent extends LazyLogging {
 
   private def configType = List("ic01", "ts01", "voc01")
 
-  private def getChannelMap(name: String) = {
+  private def getChannelMap(name: String): Map[String, String] = {
     val channels = config.getObject(name).entrySet()
     val channelKV = channels.asScala map { ch =>
       val v = ch.getValue.render()
@@ -122,12 +122,12 @@ class XmlAgent extends Actor with LazyLogging {
           new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
         } else if(fileNameConfig == 3){
           val channelFolderMap = getChannelFolderMap
-          val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}${channelFolderMap(computer.toLowerCase())(channel)}${File.separator}"
+          val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}"
           val outpath = new File(outpathStr)
           if (!outpath.exists())
             outpath.mkdirs()
 
-          new File(s"$outpathStr${dtStr}_${channelMap(channel)}_${glass_id}.xml")
+          new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
         }else{
           throw new Exception(s"Unknwon fileNameConfig ${fileNameConfig}")
         }
