@@ -26,7 +26,7 @@ object XmlAgent extends LazyLogging {
   private val fileNameConfig = config.getInt("fileNameConfig")
   logger.info(s"fileNameConfig =$fileNameConfig")
 
-  private def configType = List("ic01", "ts01", "voc01")
+  private def configType: List[String] = List("ic01", "ts01", "voc01")
 
   private def getChannelMap(name: String): Map[String, String] = {
     val channels = config.getObject(name).entrySet()
@@ -37,7 +37,7 @@ object XmlAgent extends LazyLogging {
     channelKV.toMap
   }
 
-  private def getAnMap(name: String) = {
+  private def getAnMap(name: String): Map[String, String] = {
     val ans = config.getObject(name).entrySet()
     val anKV = ans.asScala map { an =>
       val v = an.getValue.render()
@@ -121,13 +121,13 @@ class XmlAgent extends Actor with LazyLogging {
 
           new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
         } else if(fileNameConfig == 3){
-          val channelFolderMap = getChannelFolderMap
+          val channelFolderMap: Map[String, Map[String, String]] = getChannelFolderMap
           val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}"
           val outpath = new File(outpathStr)
           if (!outpath.exists())
             outpath.mkdirs()
 
-          new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
+          new File(s"$outpathStr${dtStr}_${channelFolderMap(computer.toLowerCase())(channel)}_$glass_id.xml")
         }else{
           throw new Exception(s"Unknwon fileNameConfig ${fileNameConfig}")
         }
