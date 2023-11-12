@@ -10,7 +10,7 @@ object XmlAgent extends LazyLogging {
 
   import com.typesafe.config.ConfigFactory
 
-  case object ParseOutput
+  private case object ParseOutput
 
   private val config = ConfigFactory.load()
 
@@ -56,7 +56,7 @@ object XmlAgent extends LazyLogging {
 
   private def getChannelFolderMap: Map[String, Map[String, String]] = configType.map {
     name =>
-      name->getAnMap(s"${name}_folder")
+      name -> getAnMap(s"${name}_folder")
   }.toMap
 
   var receiver: ActorRef = _
@@ -87,7 +87,7 @@ class XmlAgent extends Actor with LazyLogging {
 
   logger.info(s"localPath=${localDir.getAbsolutePath}")
 
-  val xmlOutDir = new File(XmlAgent.xmlOutputPathStr)
+  private val xmlOutDir = new File(XmlAgent.xmlOutputPathStr)
   if (!xmlOutDir.exists()) {
     val xmlOutPath = Paths.get(xmlOutDir.getAbsolutePath)
     Files.createDirectories(xmlOutPath)
@@ -120,7 +120,7 @@ class XmlAgent extends Actor with LazyLogging {
             outpath.mkdirs()
 
           new File(s"$outpathStr${dtStr}_${channelMap(channel)}_$glass_id.xml")
-        } else if(fileNameConfig == 3){
+        } else if (fileNameConfig == 3) {
           val channelFolderMap: Map[String, Map[String, String]] = getChannelFolderMap
           val outpathStr = s"$xmlOutputPathStr${File.separator}$eqid${File.separator}"
           val outpath = new File(outpathStr)
@@ -128,8 +128,16 @@ class XmlAgent extends Actor with LazyLogging {
             outpath.mkdirs()
 
           new File(s"$outpathStr${dtStr}_${channelFolderMap(computer.toLowerCase())(channel)}_$glass_id.xml")
-        }else{
-          throw new Exception(s"Unknwon fileNameConfig ${fileNameConfig}")
+        } else if (fileNameConfig == 4) {
+          val channelFolderMap: Map[String, Map[String, String]] = getChannelFolderMap
+          val outputStr = s"$xmlOutputPathStr${File.separator}}"
+          val outputPath = new File(outputStr)
+          if (!outputPath.exists())
+            outputPath.mkdirs()
+
+          new File(s"$outputStr${dtStr}_${channelFolderMap(computer.toLowerCase())(channel)}_$glass_id.xml")
+        }else {
+          throw new Exception(s"Unknown fileNameConfig ${fileNameConfig}")
         }
 
       val nodeBuffer = new xml.NodeBuffer
